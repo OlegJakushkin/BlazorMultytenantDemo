@@ -1,6 +1,6 @@
 using System;
 
-namespace BlazorGmail.Services
+namespace BlazorMultytenantDemo.Services
 {
     public class WeatherForecast
     {

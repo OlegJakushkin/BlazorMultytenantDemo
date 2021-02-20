@@ -1,4 +1,4 @@
-﻿namespace BlazorGmail.Data
+﻿namespace BlazorMultytenantDemo.Data
 {
     public class Relation   
     {

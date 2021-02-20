@@ -1,5 +1,5 @@
 ﻿@page "/"
-@using BlazorGmail.Data
+@using BlazorMultytenantDemo.Data
 @using Microsoft.AspNetCore.Http
 @using System.Security.Claims
 
@@ -11,11 +11,11 @@
     List<User> Users = new List<User>();
     List<Relation> Relations = new List<Relation>();
     string UserEmail = "";
+    string OtherUserEmail = "";
 
 
     protected override async Task OnInitializedAsync()
     {
-        await RefreshProducts();
 
         // TODO: move into sane service
         // TODO: catch!
@@ -23,42 +23,66 @@
             .FindFirstValue(ClaimTypes.Email);
         if (email != null)
         {
-            UserEmail =email;
+            UserEmail = email;
         }
+        await Refresh();
+
     }
 
-    private async Task RefreshProducts()
+    private async Task Refresh()
     {
+        Relations = await service.GetRelationsAsync();
 
         Orgs = await service.GetUserOrgs(UserEmail);
 
         if (_updateOrg != null)
         {
-            Users = await service.GetOrgUsersAsync(_updateOrg);
+            _updateOrg = Orgs.First(org => org.AdminName == UserEmail);
         }
-        //Relations = await service.GetRelationsAsync();
+
+        Users = await service.GetOrgUsersAsync(_updateOrg);
+    }
+
+    public Org _updateOrg = new Org();
+
+
+    private async Task OrgSelected(Org org)
+    {
+        _updateOrg = org;
+        await Refresh();
     }
 
 
-    public Org _updateOrg   = new Org();
-    public User _updateUser   = new User();
-
-
-    private async Task AddUserToMyOrg()
+    private async Task AddUserToMyOrg(string queryUser)
     {
-        await service.UpdateUserOrgAsync(_updateUser, _updateOrg);
-        await RefreshProducts();
+        var usr = await service.IsThisAUser(queryUser);
+        if (usr == null)
+        {
+            // TODO add a cooldown
+            return;
+        }
+        await service.UpdateUserOrgAsync(usr, _updateOrg);
+        await Refresh();
     }
 
-    private async Task DeleteUserFromMyOrganisation(User user)
+    private async Task DeleteUserFromMyOrganisation(Org org, string queryUser)
     {
-        await service.DeleteUserFromOrgAsync(UserEmail, _updateOrg, user);
-        await RefreshProducts();
+        var usr = await service.IsThisAUser(queryUser);
+        if (usr == null)
+        {
+            // TODO add a cooldown
+            return;
+        }
+        await service.DeleteUserFromOrgAsync(UserEmail, org, usr);
+        await Refresh();
     }
 
 }
-
+<!-- Debug iformation and
+// TODO: remove debug info
+-->
 <h2>@UserEmail</h2>
+
 <div class="container">
     <h2>Relations</h2>
 
@@ -92,6 +116,7 @@
             </tbody>
         </table>
     </div>
+    <!-- Debug iformation ends here  -->
 
     <h2>Orgs</h2>
 
@@ -101,19 +126,19 @@
                 <tr>
                     <th>Org Id</th>
                     <th>AdminName</th>
-                    <th>Delete Org</th>
+                    <th>Unsubscribe drom Org</th>
                 </tr>
             </thead>
             <tbody>
                 @if (Orgs.Any())
                 {
-                    @foreach (var product in Orgs)
+                    @foreach (var org in Orgs)
                     {
-                        <tr @onclick="() => SetProductForUpdate(product)">
-                            <td>@product.Id</td>
-                            <td>@product.AdminName</td>
+                        <tr @onclick="() => OrgSelected(org)">
+                            <td>@org.Id</td>
+                            <td>@org.AdminName</td>
                             <td>
-                                <button class="btn btn-danger" @onclick="() => DeleteProduct(product)">Delete</button>
+                                <button class="btn btn-danger" @onclick="() => DeleteUserFromMyOrganisation(org, UserEmail)">Unsubscribe</button>
                             </td>
                         </tr>
                     }
@@ -122,7 +147,7 @@
                 {
                     <tr>
                         <td colspan="6">
-                            <strong>No usrs available</strong>
+                            <strong>No Orgs available</strong>
                         </td>
                     </tr>
                 }
@@ -135,10 +160,12 @@
         <table class="table table-bordered">
             <thead class="thead-dark">
                 <tr>
-                    <th>Org Id</th>
-                    <th>AdminName</th>
-                    <th>Orgs Quantity</th>
-                    <th>Delete Org</th>
+                    <th>User Id</th>
+                    <th>User Name</th>
+                    @if (_updateOrg.AdminName == UserEmail)
+                    {
+                        <th>Delete User</th>
+                    }
                 </tr>
             </thead>
             <tbody>
@@ -146,20 +173,15 @@
                 {
                     @foreach (var user in Users)
                     {
-                        <tr @onclick="() => SetUserForUpdate(user)">
+                        <tr>
                             <td>@user.Id</td>
                             <td>@user.Name</td>
-                            @if (user.Relations != null)
+                            @if (_updateOrg.AdminName == UserEmail)
                             {
-                                <td>@user.Relations.Count</td>
+                                <td>
+                                    <button class="btn btn-danger" @onclick="() => DeleteUserFromMyOrganisation(_updateOrg, user.Name)">Delete</button>
+                                </td>
                             }
-                            else
-                            {
-                                <td>Null</td>
-                            }
-                            <td>
-                                <button class="btn btn-danger" @onclick="() => DeleteUserFromMyOrganisation(user)">Delete</button>
-                            </td>
                         </tr>
                     }
                 }
@@ -176,62 +198,20 @@
     </div>
 
 
-    <div class="row m-5">
-        <div class="col-5 bg-light m-2 justify-content-start">
+    <div class="col-5 bg-light m-2 justify-content-end">
+        <div class="p-3 mb-1 bg-primary text-white text-center">Add Org to User</div>
 
-            <div class="p-3 mb-3 bg-primary text-white text-center">Add New Org</div>
+        <EditForm>
+            <div class="form-group">
+                <label for="name">User Email</label>
+                <input type="text" id="otheruseremail" class="form-control" @bind-value="@OtherUserEmail" />
+            </div>
 
-            <EditForm Model="@NewOrg">
-                <div class="form-group">
-                    <label for="name">Org AdminName</label>
-                    <input type="text" id="name" class="form-control" @bind-value="@NewOrg.Name" />
-                </div>
-
-
-                <div class="text-center p-3 mb-3">
-                    <button class="btn btn-info" @onclick="AddNewOrganisation"> Add Org</button>
-                </div>
-            </EditForm>
-        </div>
-
-        <div class="col-5 bg-light m-2 justify-content-end">
-            <div class="p-3 mb-1 bg-primary text-white text-center">Update Org</div>
-
-            <EditForm Model="@_updateOrg">
-                <div class="form-group">
-                    <label for="name">Org AdminName</label>
-                    <input type="text" id="name" class="form-control" @bind-value="@_updateOrg.AdminName" />
-                </div>
-
-
-                <div class="text-center p-3 mb-3">
-                    <button class="btn btn-info" @onclick="UpdateProductData"> Update Org</button>
-                </div>
-            </EditForm>
-        </div>
-
-        <div class="col-5 bg-light m-2 justify-content-end">
-            <div class="p-3 mb-1 bg-primary text-white text-center">Add Org to User</div>
-
-            <EditForm Model="@_updateUser">
-                <div class="form-group">
-                    <label for="name">User AdminName</label>
-                    <input type="text" id="name" class="form-control" @bind-value="@_updateUser.Name" />
-                </div>
-
-                <div class="form-group">
-                    <label for="name">Org AdminName</label>
-                    <input type="text" id="orgid" class="form-control" @bind-value="@_updateOrg.AdminName" />
-                </div>
-
-                <div class="text-center p-3 mb-3">
-                    <button class="btn btn-info" @onclick="AddUserToMyOrg"> Update Org</button>
-                </div>
-            </EditForm>
-        </div>
+            <div class="text-center p-3 mb-3">
+                <button class="btn btn-info" @onclick="() => AddUserToMyOrg(OtherUserEmail)"> Update Org</button>
+            </div>
+        </EditForm>
     </div>
-
-
 </div>
 
 

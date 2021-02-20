@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
-namespace BlazorGmail.Data
+namespace BlazorMultytenantDemo.Data
 {
 
     public class DbContext : Microsoft.EntityFrameworkCore.DbContext

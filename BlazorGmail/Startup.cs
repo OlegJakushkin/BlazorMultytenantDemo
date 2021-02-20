@@ -3,19 +3,19 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using BlazorGmail.Services;
 
 // ***************************
 using System.Net.Http;
-using BlazorGmail.Data;
+using BlazorMultytenantDemo.Data;
+using BlazorMultytenantDemo.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authentication.Cookies;
 // ***************************
 
-using DbContext = BlazorGmail.Data.DbContext;
+using DbContext = BlazorMultytenantDemo.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 
-namespace BlazorGmail
+namespace BlazorMultytenantDemo
 {
     public class Startup
     {
@@ -32,7 +32,7 @@ namespace BlazorGmail
         {
             services.AddMvc()
                 .AddNewtonsoftJson();
-            services.AddDbContext<DbContext>(options =>
+            services.AddDbContext<Data.DbContext>(options =>
             {
                 options.UseSqlite("Data Source = Orgs.db");
                 ;

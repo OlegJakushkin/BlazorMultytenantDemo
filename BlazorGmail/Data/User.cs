@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace BlazorGmail.Data
+namespace BlazorMultytenantDemo.Data
 {
     public class User
     {
