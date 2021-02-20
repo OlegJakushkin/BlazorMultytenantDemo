@@ -1,5 +1,237 @@
 ﻿@page "/"
+@using BlazorGmail.Data
+@using Microsoft.AspNetCore.Http
+@using System.Security.Claims
 
-<h1>Hello, world!</h1>
+@inject IHttpContextAccessor _httpContextAccessor
+@inject DbController service
 
-Welcome to your new app.
+@code {
+    List<Org> Orgs = new List<Org>();
+    List<User> Users = new List<User>();
+    List<Relation> Relations = new List<Relation>();
+    string UserEmail = "";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshProducts();
+
+        // TODO: move into sane service
+        // TODO: catch!
+        var email = _httpContextAccessor.HttpContext.User
+            .FindFirstValue(ClaimTypes.Email);
+        if (email != null)
+        {
+            UserEmail =email;
+        }
+    }
+
+    private async Task RefreshProducts()
+    {
+
+        Orgs = await service.GetUserOrgs(UserEmail);
+
+        if (_updateOrg != null)
+        {
+            Users = await service.GetOrgUsersAsync(_updateOrg);
+        }
+        //Relations = await service.GetRelationsAsync();
+    }
+
+
+    public Org _updateOrg   = new Org();
+    public User _updateUser   = new User();
+
+
+    private async Task AddUserToMyOrg()
+    {
+        await service.UpdateUserOrgAsync(_updateUser, _updateOrg);
+        await RefreshProducts();
+    }
+
+    private async Task DeleteUserFromMyOrganisation(User user)
+    {
+        await service.DeleteUserFromOrgAsync(UserEmail, _updateOrg, user);
+        await RefreshProducts();
+    }
+
+}
+
+<h2>@UserEmail</h2>
+<div class="container">
+    <h2>Relations</h2>
+
+    <div class="row bg-light">
+        <table class="table table-bordered">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Org Id</th>
+                    <th>User Id</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Relations.Any())
+                {
+                    @foreach (var product in Relations)
+                    {
+                        <tr>
+                            <td>@product.OrgId</td>
+                            <td>@product.UserId</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6">
+                            <strong>No Relations available</strong>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Orgs</h2>
+
+    <div class="row bg-light">
+        <table class="table table-bordered">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Org Id</th>
+                    <th>AdminName</th>
+                    <th>Delete Org</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Orgs.Any())
+                {
+                    @foreach (var product in Orgs)
+                    {
+                        <tr @onclick="() => SetProductForUpdate(product)">
+                            <td>@product.Id</td>
+                            <td>@product.AdminName</td>
+                            <td>
+                                <button class="btn btn-danger" @onclick="() => DeleteProduct(product)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6">
+                            <strong>No usrs available</strong>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Users</h2>
+    <div class="row bg-light">
+        <table class="table table-bordered">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Org Id</th>
+                    <th>AdminName</th>
+                    <th>Orgs Quantity</th>
+                    <th>Delete Org</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Users.Any())
+                {
+                    @foreach (var user in Users)
+                    {
+                        <tr @onclick="() => SetUserForUpdate(user)">
+                            <td>@user.Id</td>
+                            <td>@user.Name</td>
+                            @if (user.Relations != null)
+                            {
+                                <td>@user.Relations.Count</td>
+                            }
+                            else
+                            {
+                                <td>Null</td>
+                            }
+                            <td>
+                                <button class="btn btn-danger" @onclick="() => DeleteUserFromMyOrganisation(user)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6">
+                            <strong>No userToRemoves available</strong>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+
+    <div class="row m-5">
+        <div class="col-5 bg-light m-2 justify-content-start">
+
+            <div class="p-3 mb-3 bg-primary text-white text-center">Add New Org</div>
+
+            <EditForm Model="@NewOrg">
+                <div class="form-group">
+                    <label for="name">Org AdminName</label>
+                    <input type="text" id="name" class="form-control" @bind-value="@NewOrg.Name" />
+                </div>
+
+
+                <div class="text-center p-3 mb-3">
+                    <button class="btn btn-info" @onclick="AddNewOrganisation"> Add Org</button>
+                </div>
+            </EditForm>
+        </div>
+
+        <div class="col-5 bg-light m-2 justify-content-end">
+            <div class="p-3 mb-1 bg-primary text-white text-center">Update Org</div>
+
+            <EditForm Model="@_updateOrg">
+                <div class="form-group">
+                    <label for="name">Org AdminName</label>
+                    <input type="text" id="name" class="form-control" @bind-value="@_updateOrg.AdminName" />
+                </div>
+
+
+                <div class="text-center p-3 mb-3">
+                    <button class="btn btn-info" @onclick="UpdateProductData"> Update Org</button>
+                </div>
+            </EditForm>
+        </div>
+
+        <div class="col-5 bg-light m-2 justify-content-end">
+            <div class="p-3 mb-1 bg-primary text-white text-center">Add Org to User</div>
+
+            <EditForm Model="@_updateUser">
+                <div class="form-group">
+                    <label for="name">User AdminName</label>
+                    <input type="text" id="name" class="form-control" @bind-value="@_updateUser.Name" />
+                </div>
+
+                <div class="form-group">
+                    <label for="name">Org AdminName</label>
+                    <input type="text" id="orgid" class="form-control" @bind-value="@_updateOrg.AdminName" />
+                </div>
+
+                <div class="text-center p-3 mb-3">
+                    <button class="btn btn-info" @onclick="AddUserToMyOrg"> Update Org</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+
+
+</div>
+
+

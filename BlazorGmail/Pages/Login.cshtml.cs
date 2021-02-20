@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
+﻿using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using BlazorGmail.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -16,9 +13,14 @@ namespace BlazorGmail.Server.Pages
     [AllowAnonymous]
     public class LoginModel : PageModel
     {
+        private readonly DbController _dbConroller;
+        public LoginModel(DbController dbConroller)
+        {
+            _dbConroller = dbConroller;
+        }
         public IActionResult OnGetAsync(string returnUrl = null)
         {
-            string provider = "Google";
+            var provider = "Google";
 
             // Request a redirect to the external login provider.
             var authenticationProperties = new AuthenticationProperties
@@ -49,6 +51,14 @@ namespace BlazorGmail.Server.Pages
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(GoogleUser),
                 authProperties);
+
+                var email = HttpContext.User
+                    .FindFirstValue(ClaimTypes.Email);
+                if (email != null)
+                {
+                    await _dbConroller.AddUserOrgAsync(email);
+                }
+                
             }
 
             return LocalRedirect("/");

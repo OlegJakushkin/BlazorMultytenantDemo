@@ -1,12 +1,10 @@
 ﻿@using System.Security.Claims
 @using Microsoft.AspNetCore.Http
 @inject IHttpContextAccessor _httpContextAccessor
-@inject HttpClient Http
 
 @if (User.Identity.Name != null)
 {
-    <img src="@Avatar" />
-    <b>You are logged in as: @GivenName @Surname</b>
+    <b>You are logged in as: @Email</b>
     <a class="ml-md-auto btn btn-primary"
        href="/Logout"
        target="_top">Logout</a>
@@ -21,9 +19,7 @@ else
 
 @functions {
     private ClaimsPrincipal User;
-    private string GivenName;
-    private string Surname;
-    private string Avatar;
+    private string Email;
 
     protected override void OnInitialized()
     {
@@ -41,17 +37,14 @@ else
 
             if (givenName != null)
             {
-                GivenName = givenName.Value;
+                Email = givenName.Value;
             }
             else
             {
-                GivenName = User.Identity.Name;
+                Email = User.Identity.Name;
             }
 
-            Surname = "";
-       
-            Avatar = "";
-            
+
         }
         catch { }
     }
