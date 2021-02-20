@@ -8,17 +8,15 @@ namespace BlazorMultytenantDemo.Data
     public class DbController
     {
         private readonly DbContext dbContext;
-        private async Task<Org> AddOrgAsync(Org org)
+        private async Task AddOrgAsync(Org org)
         {
             dbContext.Orgs.Add(org);
             await dbContext.SaveChangesAsync();
-            return org;
         }
-        private async Task<User> AddUserAsync(User usr)
+        private async Task AddUserAsync(User usr)
         {
             dbContext.Users.Add(usr);
             await dbContext.SaveChangesAsync();
-            return usr;
         }
         public DbController(DbContext dbContext)
         {
@@ -28,6 +26,7 @@ namespace BlazorMultytenantDemo.Data
         //------------ Orgs ------------
         public async Task<User> IsThisAUser(string queryName)
         {
+            var rels = await dbContext.Relations.ToListAsync();
             var usr= await dbContext.Users.FirstOrDefaultAsync(user => user.Name == queryName);
             return usr;
         }
@@ -58,7 +57,7 @@ namespace BlazorMultytenantDemo.Data
         public async Task AddUserOrgAsync(string querySource)
         {
             var usr = await IsThisAUser(querySource);
-            if (usr == null){
+            if (usr != null){
                 return;
             }
 
@@ -79,17 +78,25 @@ namespace BlazorMultytenantDemo.Data
             {
                 Name = querySource
             }; 
-            newUser  = await AddUserAsync(newUser);
+            await AddUserAsync(newUser);
+
             var newOrg = new Org()
             {
                 AdminName = querySource
             };
-            newOrg = await AddOrgAsync(newOrg);
+            AddOrgAsync(newOrg);
+            userExist = dbContext
+                .Users
+                .FirstOrDefault(p => p.Name == querySource);
 
-            await UpdateUserOrgAsync(newUser, newOrg);
+            targetOrg = dbContext.Orgs
+                .FirstOrDefault(org =>
+                    org.AdminName == querySource);
+
+            await UpdateUserOrgAsync(userExist, targetOrg);
         }
 
-        public async Task<User> UpdateUserOrgAsync(User usr, Org org)
+        public async Task UpdateUserOrgAsync(User usr, Org org)
         {
             var userExist = dbContext
                 .Users
@@ -97,23 +104,24 @@ namespace BlazorMultytenantDemo.Data
 
             var orgExist = dbContext
                 .Orgs
-                .FirstOrDefault(p => p.Id == usr.Id);
+                .FirstOrDefault(p => p.Id == org.Id);
 
             if (userExist != null && orgExist != null)
             {
                 var rel = new Relation()
                 {
-                    UserId = usr.Id,
-                    OrgId = org.Id,
-                    Org = org,
-                    User = usr
+                    UserId = userExist.Id,
+                    OrgId = orgExist.Id,
+                    Org = orgExist,
+                    User = userExist
 
                 };
                 dbContext.Relations.Add(rel);
                 await dbContext.SaveChangesAsync();
-            }
+                var rels = await dbContext.Relations.ToListAsync();
+                var a = 999;
 
-            return usr;
+            }
         }
 
 
