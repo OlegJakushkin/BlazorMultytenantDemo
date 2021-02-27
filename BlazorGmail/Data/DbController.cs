@@ -141,6 +141,7 @@ namespace BlazorMultytenantDemo.Data
                 if (rel != null)
                 {
                     dbContext.Relations.Remove(rel);
+                    await dbContext.SaveChangesAsync();
                 }
             }
         }
