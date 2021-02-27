@@ -40,19 +40,27 @@ namespace BlazorMultytenantDemo.Data
             {
                 return null;
             }
-            var rels = await dbContext.Relations
-                .Where(relation => relation.User.Name == usr.Name)
-                .ToListAsync();
+            var rels = dbContext.Relations
+                .Where(relation => relation.UserId == usr.Id)
+                .ToList();
 
-            return rels.Select(relation => relation.Org).ToList();
+            var orgs = await dbContext.Orgs.ToListAsync();
+
+            return orgs
+                    .Where(o=> rels.Any(r=> r.OrgId == o.Id))
+                .ToList();
         }
         public async Task<List<User>> GetOrgUsersAsync(Org queryOrg)
         {
             var rels = await dbContext.Relations
-                .Where(relation => relation.Org == queryOrg)
+                .Where(relation => relation.OrgId == queryOrg.Id)
                 .ToListAsync();
 
-            return rels.Select(relation => relation.User).ToList();
+            var users = await dbContext.Users.ToListAsync();
+
+            return users.
+                Where(u => rels.Any(relation => relation.UserId == u.Id))
+                .ToList();
         }
         public async Task AddUserOrgAsync(string querySource)
         {
@@ -112,9 +120,6 @@ namespace BlazorMultytenantDemo.Data
                 {
                     UserId = userExist.Id,
                     OrgId = orgExist.Id,
-                    Org = orgExist,
-                    User = userExist
-
                 };
                 dbContext.Relations.Add(rel);
                 await dbContext.SaveChangesAsync();
@@ -132,7 +137,7 @@ namespace BlazorMultytenantDemo.Data
             {
 
                 var rel = dbContext.Relations.First(relation =>
-                    relation.Org == updateOrg && relation.User == userToRemove);
+                    relation.OrgId == updateOrg.Id && relation.UserId == userToRemove.Id);
                 if (rel != null)
                 {
                     dbContext.Relations.Remove(rel);
