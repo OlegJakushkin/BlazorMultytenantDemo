@@ -124,7 +124,7 @@ namespace BlazorMultytenantDemo.Data
                 dbContext.Relations.Add(rel);
                 await dbContext.SaveChangesAsync();
                 var rels = await dbContext.Relations.ToListAsync();
-                var a = 999;
+       
 
             }
         }

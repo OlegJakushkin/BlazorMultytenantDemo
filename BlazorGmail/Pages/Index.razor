@@ -180,7 +180,7 @@
                         <tr>
                             <td>@user.Id</td>
                             <td>@user.Name</td>
-                            @if (_updateOrg.AdminName == UserEmail)
+                            @if (@user.Name != UserEmail)
                             {
                                 <td>
                                     <button class="btn btn-danger" @onclick="() => DeleteUserFromMyOrganisation(_updateOrg, user.Name)">Delete</button>
