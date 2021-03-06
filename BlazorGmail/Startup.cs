@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-
+using Finbuckle.MultiTenant;
 // ***************************
 using System.Net.Http;
 using BlazorMultytenantDemo.Data;
 using BlazorMultytenantDemo.Services;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authentication.Cookies;
 // ***************************
@@ -17,6 +18,41 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BlazorMultytenantDemo
 {
+
+    public class ToDoItem
+    {
+        public int Id { get; set; }
+
+        public string Title { get; set; }
+
+        public bool Completed { get; set; }
+    }
+
+    public class ToDoDbContext : MultiTenantDbContext
+    {
+        public ToDoDbContext(ITenantInfo tenantInfo) : base(tenantInfo)
+        {
+        }
+
+        public ToDoDbContext(ITenantInfo tenantInfo, DbContextOptions<ToDoDbContext> options) : base(tenantInfo, options)
+        {
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder.UseSqlite(TenantInfo.ConnectionString);
+            base.OnConfiguring(optionsBuilder);
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ToDoItem>().IsMultiTenant();
+
+            base.OnModelCreating(modelBuilder);
+        }
+
+        public DbSet<ToDoItem> ToDoItems { get; set; }
+    }
     public class Startup
     {
         // To hold the values from the appsettings.json file
@@ -44,7 +80,11 @@ namespace BlazorMultytenantDemo
             // ***********************************************
             services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie();
-
+            services.AddDistributedMemoryCache();
+            services.AddSession(options =>
+            {
+                options.Cookie.IsEssential = true;
+            });
             services.AddAuthentication().AddGoogle(options =>
             {
                 options.ClientId = Configuration["Google:ClientId"];
@@ -68,6 +108,10 @@ namespace BlazorMultytenantDemo
 
             services.AddRazorPages();
             services.AddServerSideBlazor();
+
+            services.AddMultiTenant<TenantInfo>().
+                WithConfigurationStore().
+                WithSessionStrategy();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -86,7 +130,7 @@ namespace BlazorMultytenantDemo
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
-
+            
             app.UseRouting();
 
             app.UseAuthentication();
@@ -98,13 +142,31 @@ namespace BlazorMultytenantDemo
             });
             app.UseAuthentication();
             // ******
-
+            app.UseMultiTenant();
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
                 endpoints.MapBlazorHub();
                 endpoints.MapFallbackToPage("/_Host");
             });
+
+            SetupDb();
+        }
+
+        private void SetupDb()
+        {
+            var ti = new TenantInfo { Id = "finbuckle", ConnectionString = "Data Source=Data/ToDoList.db" };
+            using (var db = new ToDoDbContext(ti))
+            {
+                db.Database.EnsureDeleted();
+                db.Database.EnsureCreated();
+                db.ToDoItems.Add(new ToDoItem { Title = "Call Lawyer ", Completed = false });
+                db.ToDoItems.Add(new ToDoItem { Title = "File Papers", Completed = false });
+                db.ToDoItems.Add(new ToDoItem { Title = "Send Invoices", Completed = true });
+                db.SaveChanges();
+            }
+
+
         }
     }
 }

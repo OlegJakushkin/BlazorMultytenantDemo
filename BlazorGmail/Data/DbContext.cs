@@ -8,20 +8,21 @@ namespace BlazorMultytenantDemo.Data
     {
         #region Contructor
 
+
         public DbContext(DbContextOptions<DbContext> options)
             : base(options)
         {
-            Database.EnsureCreated();
+            FirsRun  = Database.EnsureCreated();
         }
-
+        public bool FirsRun { get; set; }
+        
         #endregion
 
         #region Overidden methods
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Org>().HasData(GetOrgs());
-            modelBuilder.Entity<User>().HasData(GetUsers());
+            //modelBuilder.Entity<User>().HasData(GetUsers());
 
             modelBuilder.Entity<Relation>().HasKey(rt => new { rt.UserId, rt.OrgId });
             modelBuilder.Entity<Relation>()
@@ -46,35 +47,5 @@ namespace BlazorMultytenantDemo.Data
         #endregion
 
 
-        #region Private methods
-
-        private List<Org> GetOrgs()
-        {
-            return new List<Org>
-            {
-                new Org {Id = 1001, AdminName = "MS"},
-                new Org {Id = 1002, AdminName = "SPBU"},
-                new Org {Id = 1003, AdminName = "APPL"},
-                new Org {Id = 1004, AdminName = "GOOGL"}
-            };
-        }
-
-        private List<User> GetUsers()
-        {
-            var ul = new List<User>
-            {
-                new User {Id = 1001, Name = "Vasia"},
-                new User {Id = 1002, Name = "Dasha"},
-                new User {Id = 1003, Name = "Petia"},
-                new User {Id = 1004, Name = "Masha"}
-            };
-
-
-            //ul.First().Orgs.Add(new Org { Id = 1005, AdminName = "AMD" });
-
-            return ul;
-        }
-
-        #endregion
     }
 }

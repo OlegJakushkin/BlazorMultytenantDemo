@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Finbuckle.MultiTenant;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlazorMultytenantDemo.Data
@@ -8,10 +9,21 @@ namespace BlazorMultytenantDemo.Data
     public class DbController
     {
         private readonly DbContext dbContext;
+
         private async Task AddOrgAsync(Org org)
         {
             dbContext.Orgs.Add(org);
             await dbContext.SaveChangesAsync();
+
+            var ti = new TenantInfo { Id = org.Id.ToString(), ConnectionString = "Data Source=Data/ToDoList.db" }; // TODO rename DB file
+            using (var db = new ToDoDbContext(ti))
+            {
+                db.Database.EnsureCreated();
+                db.ToDoItems.Add(new ToDoItem { Title = "Send Invoices", Completed = true });
+                db.ToDoItems.Add(new ToDoItem { Title = "Construct Additional Pylons", Completed = true });
+                db.ToDoItems.Add(new ToDoItem { Title = "Call Insurance Company", Completed = false });
+                db.SaveChanges();
+            }
         }
         private async Task AddUserAsync(User usr)
         {
@@ -21,6 +33,21 @@ namespace BlazorMultytenantDemo.Data
         public DbController(DbContext dbContext)
         {
             this.dbContext = dbContext;
+            if (dbContext.FirsRun) //TODO make atomic
+            {
+                dbContext.FirsRun = false;
+                var ul = new List<User>
+                {
+                    new User {Name = "Vasia"},
+                    new User {Name = "Dasha"},
+                    new User {Name = "Petia"},
+                    new User {Name = "Masha"}
+                };
+                foreach (var u in ul)
+                {
+                    AddUserOrgAsync(u.Name);
+                }
+            }
         }
 
         //------------ Orgs ------------
